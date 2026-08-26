@@ -1,0 +1,23 @@
+{
+  "name": "@l5ng/yaohe-collector-git",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./src/*": "./src/*"
+  },
+  "files": ["dist", "!dist/**/*.test.js", "!dist/**/*.test.js.map"],
+  "scripts": {
+    "build": "rm -rf dist && tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@l5ng/yaohe-core": "workspace:*",
+    "cordis": "^3.18.1"
+  }
+}
