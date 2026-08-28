@@ -59,7 +59,7 @@ function makeRepo(): string {
   git(root, ['init', '-q', '-b', 'main'])
   git(root, ['config', 'user.name', 'Alice'])
   git(root, ['config', 'user.email', 'alice@example.com'])
-  writeFileSync(join(root, 'README.md'), '# demo repo\n')
+  writeFileSync(join(root, 'README.md'), '# demo repo\nA demo repository used by the CLI end-to-end tests.\n')
   writeFileSync(join(root, 'work.txt'), 'one\n')
   git(root, ['add', 'README.md', 'work.txt'])
   git(root, ['commit', '-q', '-m', 'initial'], {
@@ -91,9 +91,13 @@ test('dry run collects repo and claude session evidence', async () => {
   expect(result.code).toBe(0)
   expect(result.stdout).toMatch(/# 2026-08-26 Daily Report/)
   expect(result.stdout).toMatch(/Structured context/)
-  expect(result.stdout).toMatch(/"schema_version": 2/)
+  expect(result.stdout).toMatch(/<report_context>/)
+  expect(result.stdout).toMatch(/Commits \(1\):/)
+  expect(result.stdout).toMatch(/User prompts \(1\):/)
   expect(result.stdout).toMatch(/build the daily report CLI/)
-  expect(result.stdout).toMatch(/"commits"/)
+  expect(result.stdout).toMatch(/README excerpt \(project background\):/)
+  expect(result.stdout).not.toContain('session_id')
+  expect(result.stdout).not.toMatch(/\b[0-9a-f]{40}\b/)
 })
 
 test('chinese default template generates a chinese prompt', async () => {

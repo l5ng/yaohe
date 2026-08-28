@@ -8,6 +8,7 @@ import {
   resolveWindow,
   writeOutput,
   YaoheError,
+  SCHEMA_VERSION,
   type ReportContext,
   type SessionEvidence,
   type UserPrompt,
@@ -64,7 +65,7 @@ async function runReport(ctx: Context, effective: EffectiveConfig): Promise<void
 
   const prompts = deduplicateAndSort([...sessionEvidence.prompts])
   const context: ReportContext = {
-    schema_version: 2,
+    schema_version: SCHEMA_VERSION,
     report_date: window.date,
     timezone: window.timezone,
     project: repo.project,
@@ -91,7 +92,11 @@ async function runReport(ctx: Context, effective: EffectiveConfig): Promise<void
     context.project.name,
     effective.templateLang,
   )
-  const prompt = buildGenerationPrompt(context, template)
+  const prompt = buildGenerationPrompt(context, template, effective.budgets)
+
+  for (const warning of context.warnings) {
+    ctx.yaoheLog.warn(warning)
+  }
 
   if (effective.dryRun) {
     process.stdout.write(prompt)

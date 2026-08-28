@@ -1,5 +1,7 @@
 /** Field names use snake_case so dump-context output stays stable and machine-comparable. */
 
+export const SCHEMA_VERSION = 3
+
 export interface ReportContext {
   schema_version: number
   report_date: string

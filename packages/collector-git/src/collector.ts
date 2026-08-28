@@ -197,10 +197,63 @@ async function collectReadme(
     warnings.push('README.md is empty')
     return null
   }
-  const [excerpt, wasTruncated] = truncateChars(text, budget)
+  const [excerpt, wasTruncated] = extractReadmeExcerpt(text, budget)
+  if (excerpt.trim() === '') return null
   if (wasTruncated) {
     truncation.readme_truncated = true
     warnings.push(`README.md was truncated to the ${budget}-character budget`)
   }
   return excerpt
+}
+
+/**
+ * Extract a high-signal README excerpt without any model calls: skip the title,
+ * badge/image lines, HTML, and fenced code blocks, then take the first
+ * substantial paragraph. Falls back to the cleaned head of the document.
+ */
+export function extractReadmeExcerpt(text: string, budget: number): [string, boolean] {
+  const cleaned = cleanReadmeText(text)
+  const paragraph = firstSubstantialParagraph(cleaned)
+  return truncateChars((paragraph ?? cleaned).trim(), budget)
+}
+
+function cleanReadmeText(text: string): string {
+  const lines: string[] = []
+  let fence: string | null = null
+  for (const rawLine of text.split('\n')) {
+    const fenceMatch = rawLine.match(/^\s*(```|~~~)/)
+    if (fenceMatch) {
+      if (fence === null) fence = fenceMatch[1]
+      else fence = null
+      continue
+    }
+    if (fence !== null) continue
+    if (!isReadmeNoiseLine(rawLine)) lines.push(rawLine)
+  }
+  return lines.join('\n')
+}
+
+function isReadmeNoiseLine(rawLine: string): boolean {
+  const line = rawLine.trim()
+  if (/^#+\s/.test(line)) return true
+  if (/<img/i.test(line) || line.startsWith('![')) return true
+  if (line.startsWith('[![')) return true
+  if (/^\[[^\]]*\]\([^)]*\)$/.test(line)) return true
+  if (/^<[^>]+>$/.test(line)) return true
+  if (line.startsWith('<!--')) return true
+  if (line.startsWith('|') && /^[\s|:-]+$/.test(line)) return true
+  return false
+}
+
+function firstSubstantialParagraph(cleaned: string): string | null {
+  const blocks = cleaned
+    .split(/\n{2,}/)
+    .map((block) => block.trim())
+    .filter((block) => block !== '')
+  for (const block of blocks) {
+    const length = Array.from(block).length
+    const hasSentenceEnd = /[。！？!?.]/.test(block)
+    if (length >= 40 || (length >= 10 && hasSentenceEnd)) return block
+  }
+  return null
 }

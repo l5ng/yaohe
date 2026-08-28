@@ -103,6 +103,20 @@ produces an English report. This applies to custom `--template` files too.
 - Only `--dry-run` and `--dump-context` explicitly output sensitive context.
 - Claude/Codex run non-interactively in a temporary empty directory with the context passed via stdin.
 
+The context sent to the generator is a pruned, compact rendering of the collected
+evidence: commit subjects and stats, working-tree summaries (path lists capped),
+user prompt text, a README excerpt, and the activity estimate. It never contains
+absolute paths, commit hashes, session IDs, working directories, record IDs, or
+the raw context JSON. `--dump-context` writes the complete internal record
+(`schema_version` 3) for debugging, including those fields.
+
+Within the configured budgets, yaohe keeps each session's first prompt plus the
+newest prompts, drops near-duplicate messages inside a session, and removes the
+README before older prompts when the total budget is exceeded. If the rendered
+context still exceeds the budget, it degrades in a fixed order (README, path
+lists, per-worktree detail, commit stats, then the oldest commits) and reports
+what was omitted to stderr.
+
 ## Exit codes
 
 - `0`: success.
