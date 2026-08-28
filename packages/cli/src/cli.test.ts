@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process'
-import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { expect, test, vi } from 'vitest'
@@ -157,5 +157,6 @@ test('help and version exit 0', async () => {
   expect(help.stdout).toMatch(/--all-worktrees/)
   const version = await runCli(['--version'])
   expect(version.code).toBe(0)
-  expect(version.stdout).toMatch(/yaohe 0\.1\.0/)
+  const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'))
+  expect(version.stdout.trim()).toBe(`yaohe ${pkg.version}`)
 })
