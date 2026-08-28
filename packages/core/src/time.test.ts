@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest'
-import { parseTimestamp, resolveWindow, windowContains } from './time.js'
+import { formatTimeInZone, parseTimestamp, resolveWindow, windowContains } from './time.js'
 
 test('shanghai window uses natural day and excludes next midnight', () => {
   const window = resolveWindow('2026-07-22', 'Asia/Shanghai')
@@ -31,4 +31,31 @@ test('parses rfc3339, offset and millisecond timestamps', () => {
 
   expect(parseTimestamp('not-a-time')).toBeNull()
   expect(parseTimestamp(null)).toBeNull()
+})
+
+test('formats times in an IANA zone and offset label', () => {
+  const nineUtc = new Date('2026-07-22T09:00:00Z').getTime()
+  expect(formatTimeInZone(nineUtc, 'Asia/Shanghai')).toBe('17:00')
+  expect(formatTimeInZone(nineUtc, '+08:00')).toBe('17:00')
+  expect(formatTimeInZone(nineUtc, '-05:00')).toBe('04:00')
+  expect(formatTimeInZone(0, '+08:00')).toBe('08:00')
+})
+
+test('falls back to UTC for an invalid timezone', () => {
+  expect(formatTimeInZone(new Date('2026-07-22T09:00:00Z').getTime(), 'Mars/Olympus')).toBe('09:00')
+})
+
+test('local offset label agrees with formatTimeInZone at the current instant', () => {
+  const window = resolveWindow()
+  const now = Date.now()
+  const zone = Intl.DateTimeFormat().resolvedOptions().timeZone
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: zone,
+    hourCycle: 'h23',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).formatToParts(new Date(now))
+  const hour = parts.find((part) => part.type === 'hour')?.value ?? '00'
+  const minute = parts.find((part) => part.type === 'minute')?.value ?? '00'
+  expect(formatTimeInZone(now, window.timezone)).toBe(`${hour}:${minute}`)
 })

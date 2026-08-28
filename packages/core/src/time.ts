@@ -129,11 +129,52 @@ function localTimeZone(): string {
 
 function localOffsetLabel(epochMs: number): string {
   const offset = tzOffsetMs(localTimeZone(), epochMs)
-  const sign = offset < 0 ? '-' : '+'
-  const abs = Math.abs(offset)
-  const hours = String(Math.floor(abs / 3_600_000)).padStart(2, '0')
-  const minutes = String(Math.floor((abs % 3_600_000) / 60_000)).padStart(2, '0')
+  const totalMinutes = Math.round(offset / 60_000)
+  const sign = totalMinutes < 0 ? '-' : '+'
+  const abs = Math.abs(totalMinutes)
+  const hours = String(Math.floor(abs / 60)).padStart(2, '0')
+  const minutes = String(abs % 60).padStart(2, '0')
   return `${sign}${hours}:${minutes}`
+}
+
+/** Format an instant as HH:MM in the given zone (IANA name or "+HH:MM" offset label). */
+const timeZoneFormatters = new Map<string, Intl.DateTimeFormat>()
+
+function formatterFor(zone: string): Intl.DateTimeFormat {
+  let formatter = timeZoneFormatters.get(zone)
+  if (!formatter) {
+    formatter = new Intl.DateTimeFormat('en-US', {
+      timeZone: zone,
+      hourCycle: 'h23',
+      hour: '2-digit',
+      minute: '2-digit',
+    })
+    timeZoneFormatters.set(zone, formatter)
+  }
+  return formatter
+}
+
+export function formatTimeInZone(epochMs: number, timezone: string): string {
+  const zone = timezone.trim()
+  const offset = parseOffsetLabel(zone)
+  if (offset !== null) {
+    return new Date(epochMs + offset).toISOString().slice(11, 16)
+  }
+  try {
+    const parts = formatterFor(zone).formatToParts(new Date(epochMs))
+    const value = (type: Intl.DateTimeFormatPartTypes) =>
+      parts.find((part) => part.type === type)?.value ?? '00'
+    return `${value('hour')}:${value('minute')}`
+  } catch {
+    return new Date(epochMs).toISOString().slice(11, 16)
+  }
+}
+
+function parseOffsetLabel(timezone: string): number | null {
+  const match = /^([+-])(\d{2}):(\d{2})$/.exec(timezone)
+  if (!match) return null
+  const sign = match[1] === '-' ? -1 : 1
+  return sign * (Number(match[2]) * 3600 + Number(match[3]) * 60) * 1000
 }
 
 export function parseTimestamp(value: unknown): Instant | null {

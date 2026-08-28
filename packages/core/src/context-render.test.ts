@@ -13,15 +13,15 @@ test('renders a compact pruned context for a mixed day', () => {
   expect(text).toContain('Report date: 2026-07-22 (Asia/Shanghai)')
   expect(text).toContain('Project: demo')
   expect(text).toContain('Commits (2):')
-  expect(text).toContain('- [09:00Z] Add budget trimming for the report context (+120 -30, 6 files)')
-  expect(text).toContain('- [10:20Z] Fix the README badge link (+1 -1, 1 file)')
+  expect(text).toContain('- [17:00] Add budget trimming for the report context (+120 -30, 6 files)')
+  expect(text).toContain('- [18:20] Fix the README badge link (+1 -1, 1 file)')
   expect(text).toContain('Uncommitted changes:')
   expect(text).toContain('- staged: 2 file(s) (+10 -2): src/prompt.ts, packages/core/src/model.ts')
   expect(text).toContain('- unstaged: 1 file(s) (+3 -1): README.md')
   expect(text).toContain('- untracked: 2 path(s): notes/todo.md, scratch/log.txt')
   expect(text).toContain('User prompts (2):')
-  expect(text).toContain('- [08:20Z] (codex) Implement budget trimming for the report context')
-  expect(text).toContain('- [09:20Z] (claude) Fix the README badge link')
+  expect(text).toContain('- [16:20] (codex) Implement budget trimming for the report context')
+  expect(text).toContain('- [17:20] (claude) Fix the README badge link')
   expect(text).toContain('Estimated activity: 96 minutes (estimate; derived from user prompt timestamps)')
   expect(text).toContain('README excerpt (project background):')
 })
@@ -64,6 +64,13 @@ test('annotates commits that span multiple worktrees', () => {
   expect(text).toContain('- staged: 1 file(s) (+5 -0): packages/core/src/model.ts')
   expect(text).toContain('Worktree feature (feature):')
   expect(text).toContain('- unstaged: 2 file(s) (+8 -3): src/cli.ts, src/args.ts')
+})
+
+test('renders times in the report timezone when given an offset label', () => {
+  const context = mixedDayContext()
+  context.timezone = '-05:00'
+  const text = renderGenerationContext(context)
+  expect(text).toContain('- [04:00] Add budget trimming for the report context (+120 -30, 6 files)')
 })
 
 test('omits empty sections', () => {

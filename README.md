@@ -110,6 +110,10 @@ absolute paths, commit hashes, session IDs, working directories, record IDs, or
 the raw context JSON. `--dump-context` writes the complete internal record
 (`schema_version` 3) for debugging, including those fields.
 
+Commit and prompt timestamps in the context are rendered in the report's
+timezone (declared in the header), matching the natural day being summarized;
+they are never shown as raw UTC times.
+
 Within the configured budgets, yaohe keeps each session's first prompt plus the
 newest prompts, drops near-duplicate messages inside a session, and removes the
 README before older prompts when the total budget is exceeded. If the rendered

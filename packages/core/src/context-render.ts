@@ -6,7 +6,7 @@ import type {
   ReportContext,
   WorkingTreeEvidence,
 } from './model.js'
-import { parseTimestamp } from './time.js'
+import { formatTimeInZone, parseTimestamp } from './time.js'
 
 const SUBJECT_LIMIT = 140
 const PATH_LIST_LIMIT = 50
@@ -62,13 +62,27 @@ export function renderGenerationContext(
     }
   }
 
-  let droppedCommits = 0
-  while (text.length > budgets.total_chars && context.git.commits.length - droppedCommits > 1) {
-    droppedCommits += 1
-    text = renderAt(context, options, context.git.commits.length - droppedCommits)
+  const maxCommits = context.git.commits.length
+  let commitLimit = maxCommits
+  if (maxCommits > 1 && text.length > budgets.total_chars) {
+    let low = 1
+    let high = maxCommits - 1
+    let best = 0
+    while (low <= high) {
+      const mid = Math.floor((low + high) / 2)
+      if (renderAt(context, options, mid).length <= budgets.total_chars) {
+        best = mid
+        low = mid + 1
+      } else {
+        high = mid - 1
+      }
+    }
+    commitLimit = best > 0 ? best : 1
   }
-  if (droppedCommits > 0) {
+  if (commitLimit < maxCommits) {
+    const droppedCommits = maxCommits - commitLimit
     applied.push(`omitted ${droppedCommits} oldest commit(s)`)
+    text = renderAt(context, options, commitLimit)
   }
 
   if (warnings && applied.length > 0) {
@@ -91,7 +105,7 @@ function renderAt(
   const commits = context.git.commits.slice(-commitLimit)
   if (commits.length > 0) {
     lines.push(`Commits (${commits.length}):`)
-    for (const commit of commits) lines.push(renderCommit(commit, options))
+    for (const commit of commits) lines.push(renderCommit(commit, options, context.timezone))
     lines.push('')
   }
 
@@ -127,7 +141,7 @@ function renderAt(
   if (context.prompts.length > 0) {
     lines.push(`User prompts (${context.prompts.length}):`)
     for (const prompt of context.prompts) {
-      const time = hhmmBracket(prompt.timestamp)
+      const time = hhmmBracket(prompt.timestamp, context.timezone)
       const text = prompt.text.replace(/\s+/g, ' ').trim()
       lines.push(`- ${time ? `${time} ` : ''}(${prompt.provider}) ${text}`)
     }
@@ -146,8 +160,8 @@ function renderAt(
   return lines.join('\n')
 }
 
-function renderCommit(commit: GitCommit, options: RenderOptions): string {
-  const time = hhmmBracket(commit.timestamp)
+function renderCommit(commit: GitCommit, options: RenderOptions, timezone: string): string {
+  const time = hhmmBracket(commit.timestamp, timezone)
   const [subject] = truncateChars(commit.subject, SUBJECT_LIMIT)
   let line = `- ${time ? `${time} ` : ''}${subject}`
   if (options.includeCommitStats) {
@@ -219,8 +233,8 @@ function hasWorkingTreeChanges(workingTree: WorkingTreeEvidence): boolean {
     || workingTree.untracked.total > 0
 }
 
-function hhmmBracket(iso: string): string {
+function hhmmBracket(iso: string, timezone: string): string {
   const instant = parseTimestamp(iso)
   if (!instant) return ''
-  return `[${new Date(instant.epochMilliseconds).toISOString().slice(11, 16)}Z]`
+  return `[${formatTimeInZone(instant.epochMilliseconds, timezone)}]`
 }

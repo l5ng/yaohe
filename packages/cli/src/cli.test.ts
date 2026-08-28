@@ -83,10 +83,13 @@ test('dry run collects repo and claude session evidence', async () => {
       message: { role: 'user', content: 'build the daily report CLI' },
     })}\n`,
   )
+  const configDir = mkdtempSync(join(tmpdir(), 'yaohe-cli-tz-'))
+  const configPath = join(configDir, 'config.toml')
+  writeFileSync(configPath, 'timezone = "Asia/Shanghai"\n')
 
   const result = await runCli(
     ['--dry-run', '--project', repo, '--date', '2026-08-26'],
-    { CLAUDE_CONFIG_DIR: sessions, CODEX_HOME: join(repo, '.empty-codex') },
+    { YAOHE_CONFIG: configPath, CLAUDE_CONFIG_DIR: sessions, CODEX_HOME: join(repo, '.empty-codex') },
   )
   expect(result.code).toBe(0)
   expect(result.stdout).toMatch(/# 2026-08-26 Daily Report/)
@@ -104,7 +107,7 @@ test('chinese default template generates a chinese prompt', async () => {
   const repo = makeRepo()
   const configDir = mkdtempSync(join(tmpdir(), 'yaohe-cli-zh-'))
   const configPath = join(configDir, 'config.toml')
-  writeFileSync(configPath, 'template_lang = "zh"\n')
+  writeFileSync(configPath, 'template_lang = "zh"\ntimezone = "Asia/Shanghai"\n')
   const result = await runCli(
     ['--dry-run', '--project', repo, '--date', '2026-08-26'],
     {
@@ -120,9 +123,16 @@ test('chinese default template generates a chinese prompt', async () => {
 
 test('--template-lang flag switches the default template language', async () => {
   const repo = makeRepo()
+  const configDir = mkdtempSync(join(tmpdir(), 'yaohe-cli-tz2-'))
+  const configPath = join(configDir, 'config.toml')
+  writeFileSync(configPath, 'timezone = "Asia/Shanghai"\n')
   const result = await runCli(
     ['--dry-run', '--project', repo, '--date', '2026-08-26', '--template-lang', 'zh'],
-    { CLAUDE_CONFIG_DIR: join(repo, '.no-sessions'), CODEX_HOME: join(repo, '.no-codex') },
+    {
+      YAOHE_CONFIG: configPath,
+      CLAUDE_CONFIG_DIR: join(repo, '.no-sessions'),
+      CODEX_HOME: join(repo, '.no-codex'),
+    },
   )
   expect(result.code).toBe(0)
   expect(result.stdout).toMatch(/# 2026-08-26 日报/)
