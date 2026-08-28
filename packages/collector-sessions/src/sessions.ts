@@ -72,6 +72,78 @@ export function readJsonlLines(
   return malformed
 }
 
+// Control wrappers aligned with codex external-agent-migration/src/sessions/title.rs
+const CONTROL_WRAPPERS: ReadonlyArray<readonly [string, string]> = [
+  ['<command-message>', '</command-message>'],
+  ['<command-name>', '</command-name>'],
+  ['<command-args>', '</command-args>'],
+  ['<local-command-caveat>', '</local-command-caveat>'],
+  ['<local-command-stderr>', '</local-command-stderr>'],
+  ['<local-command-stdout>', '</local-command-stdout>'],
+  ['<task-notification>', '</task-notification>'],
+  ['<system-reminder>', '</system-reminder>'],
+  ['<ide_opened_file>', '</ide_opened_file>'],
+  ['<ide_selection>', '</ide_selection>'],
+]
+
+const USER_QUERY_OPEN = '<user_query>'
+const USER_QUERY_CLOSE = '</user_query>'
+
+/**
+ * Strip recognized control wrappers from the start of a message, keeping any
+ * real user text that follows. Nested wrappers are tracked with a stack,
+ * mirroring codex title.rs; unbalanced wrappers leave the text untouched.
+ */
+export function stripControlWrappers(text: string): string {
+  let remainder = text.trimStart()
+  for (;;) {
+    const end = leadingControlWrapperEnd(remainder)
+    if (end === null) return remainder
+    remainder = remainder.slice(end).trimStart()
+  }
+}
+
+function leadingControlWrapperEnd(text: string): number | null {
+  const outerIndex = CONTROL_WRAPPERS.findIndex(([open]) => text.startsWith(open))
+  if (outerIndex < 0) return null
+  const stack: number[] = [outerIndex]
+  let cursor = CONTROL_WRAPPERS[outerIndex][0].length
+
+  while (stack.length > 0) {
+    const next = text.indexOf('<', cursor)
+    if (next < 0) return null
+    cursor = next
+    const openIndex = CONTROL_WRAPPERS.findIndex(([open]) => text.startsWith(open, cursor))
+    if (openIndex >= 0) {
+      stack.push(openIndex)
+      cursor += CONTROL_WRAPPERS[openIndex][0].length
+      continue
+    }
+    const closeIndex = CONTROL_WRAPPERS.findIndex(([, close]) => text.startsWith(close, cursor))
+    if (closeIndex >= 0) {
+      if (stack[stack.length - 1] !== closeIndex) return null
+      stack.pop()
+      cursor += CONTROL_WRAPPERS[closeIndex][1].length
+      continue
+    }
+    cursor += 1
+  }
+  return cursor
+}
+
+/**
+ * Unwrap a message that is exactly `<user_query>…</user_query>` with non-empty
+ * inner text, matching codex records_cla.rs; anything else is kept as-is.
+ */
+export function unwrapUserQuery(text: string): string {
+  const trimmed = text.trim()
+  if (trimmed.startsWith(USER_QUERY_OPEN) && trimmed.endsWith(USER_QUERY_CLOSE)) {
+    const inner = trimmed.slice(USER_QUERY_OPEN.length, -USER_QUERY_CLOSE.length).trim()
+    if (inner !== '') return inner
+  }
+  return text
+}
+
 /** Wrap a session collector into an 'evidence/session' listener that never breaks other collectors. */
 export function sessionCollectorListener(
   id: string,

@@ -13,6 +13,7 @@ export {
   extractIdeRequest,
   name as codexSessionName,
   parseCodexFile,
+  sessionSourceKey,
   shouldSkipInjected,
 } from './codex.js'
 export * from './sessions.js'
