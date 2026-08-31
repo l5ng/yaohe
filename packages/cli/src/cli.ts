@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { realpathSync } from 'node:fs'
 import { pathToFileURL } from 'node:url'
 import { CommanderError } from 'commander'
 import { run } from './app.js'
@@ -27,8 +28,11 @@ export async function main(argv: string[]): Promise<number> {
   }
 }
 
+// process.argv[1] is the path as invoked — npm/npx execute the .bin symlink,
+// so it must be realpath'd before comparing with import.meta.url (which node
+// already resolves to the real module path).
 const isMain = process.argv[1]
-  && pathToFileURL(process.argv[1]).href === import.meta.url
+  && pathToFileURL(realpathSync(process.argv[1])).href === import.meta.url
 if (isMain) {
   const code = await main(process.argv.slice(2))
   process.exitCode = code
